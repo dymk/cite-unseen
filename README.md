@@ -79,3 +79,9 @@ Re-runs are idempotent — figures with an existing `.md` are skipped; delete th
 2. `processed/<paper>/summary.md` — decide relevance.
 3. `processed/<paper>/paper.md` + `figures/` — full details.
 4. `processed/<paper>/qa.md` — only if extraction quality is in doubt.
+
+## License
+
+[MIT](LICENSE). Covers the skill code in this repo only — it does not grant
+any rights to the source PDFs in `papers/` or their extracted derivatives in
+`processed/`
