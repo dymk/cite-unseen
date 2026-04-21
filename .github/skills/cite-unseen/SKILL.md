@@ -14,9 +14,11 @@ allowed-tools:
 > Every per-paper unit (extraction, figure description, QA, summarization) MUST be
 > dispatched to a subagent — never inlined into the orchestrator, regardless of how
 > simple the shell commands look or how many papers are in scope. Cost is not your
-> concern: the user already accepted it by invoking this skill. See "Subagent
-> architecture" below for the full rationale. If you catch yourself reasoning about
-> "avoiding subagent overhead", stop and re-read that section.
+> concern: the user already accepted it by invoking this skill. **Subagents MUST run on
+> the same model as the orchestrator** — do not downgrade to cheaper/smaller models.
+> See "Subagent architecture" below for the full rationale. If you catch yourself
+> reasoning about "avoiding subagent overhead" or "using haiku for simple tasks", stop
+> and re-read that section.
 
 ## Inputs
 
@@ -120,6 +122,26 @@ Phases that require subagents (one invocation per item):
 | 5 | one per paper | `summarize.md` |
 
 Phases 4 and 6 are orchestrator-only (triage + index assembly) and do not spawn subagents.
+
+### MANDATORY: model inheritance
+
+**Every subagent MUST run on the same model as the orchestrator.** If the user invoked
+this skill with `claude-opus-4.x`, every extract/describe-figure/qa/summarize subagent
+must also run on `claude-opus-4.x`. Do NOT downgrade to `claude-haiku-4.x`, `sonnet`,
+or any other smaller/cheaper model.
+
+Rationale:
+- The user chose their model deliberately. If they wanted haiku-quality summaries, they
+  would have invoked this skill with haiku.
+- Summaries, QA judgments, and figure descriptions directly determine output quality.
+  Silently downgrading those tasks breaks the user's expectations.
+- "Simple tasks" reasoning is the same trap as "just shell commands" — a haiku-written
+  summary is not the same artifact as an opus-written one, even when both "work".
+
+When dispatching, explicitly request the orchestrator's model (do not use a runtime
+default that falls back to a cheaper tier). If your runtime does not expose a way to
+pin the subagent model, report this to the user before proceeding — do not silently
+use the default.
 
 ### Why this is non-negotiable
 
