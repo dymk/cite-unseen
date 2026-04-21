@@ -63,14 +63,23 @@ coding agent can use the papers without re-processing PDFs at query time.
 
 ## Prerequisites (Phase 0)
 
+The install steps use bash syntax (run them in `bash -c` or a bash shell). Activation
+of a fish-shell venv is a separate step:
+
 ```bash
+# One-time setup (bash)
 pip install marker-pdf
 which pdftoppm || sudo apt-get install -y poppler-utils
+```
+
+```fish
+# Per-session (fish)
 source .venv/bin/activate.fish
 ```
 
+If you're running the whole pipeline in bash, use `source .venv/bin/activate` instead.
+
 Paper directories under `processed/` are created automatically by each subagent.
-If a `.venv` directory exists at the repo root, activate it before running marker.
 
 ## Hardware
 
@@ -90,6 +99,14 @@ This design:
 - Prevents main agent context overflow (each paper is isolated)
 - Enables parallelism (independent subagents can run concurrently)
 - Makes prompts independently iterable and reviewable
+
+### If no subagent runtime is available
+
+If the orchestrator has no tool for spawning true subagents and must do figure viewing
+and QA inline, **run Phase 3 (QA) before Phase 2 (figures)**. QA may edit `paper.md`
+to fix mechanical issues, and Phase 2 figure descriptions quote paper text — you want
+the descriptions to quote the fixed version. With real subagents, the two phases are
+independent and run in parallel as documented.
 
 ---
 
@@ -132,18 +149,28 @@ free of full paper text.
 
 ### 2b. Dispatch figure subagents
 
-Read `processed/{{PAPER_NAME}}/figures/_index.json`. For each entry, invoke a subagent
-with `describe-figure.md`, substituting:
+Read `processed/{{PAPER_NAME}}/figures/_index.json`. Each entry has fields
+`{filename, stem, label, caption, context}`. `label` and `caption` are populated when the
+script detects a caption in the paper (e.g., `"Figure 3"`, `"A slot feature."`); they are
+`null` for artifacts like logos and headshots.
+
+For each entry, invoke a subagent with `describe-figure.md`, substituting:
 - `{{PAPER_NAME}}` — paper filename stem
 - `{{FIGURE_FILENAME}}` — `entry.filename`
 - `{{FIGURE_STEM}}` — `entry.stem`
+- `{{FIGURE_LABEL}}` — `entry.label` or empty string
+- `{{FIGURE_CAPTION}}` — `entry.caption` or empty string
 - `{{FIGURE_CONTEXT}}` — `entry.context`
 
-Each subagent views one image, writes one description file to
-`processed/{{PAPER_NAME}}/figures/{{FIGURE_STEM}}.md`, or reports `"skipped"` for
-non-figure artifacts.
+**Idempotency:** Before dispatching, check if
+`processed/{{PAPER_NAME}}/figures/{{stem}}.md` already exists. If it does, skip that
+entry — it was either described or skipped in a prior run. Re-runs should be cheap.
+To force regeneration, delete the `.md` file first.
 
-Collect results. Skipped figures are normal (header/footer artifacts). No failures
+Each subagent views one image, writes one description file (or a skip stub) to
+`processed/{{PAPER_NAME}}/figures/{{FIGURE_STEM}}.md`.
+
+Collect results. Skipped figures are normal (header/footer/logo artifacts). No failures
 expected — if a subagent can't view the image, report to user.
 
 **Git commit**: `processed/*/figures/`
@@ -266,8 +293,20 @@ A concept → paper routing table:
 ```
 
 Read all summaries and identify recurring themes, methods, and problem formulations.
-Group papers by concept. Every paper must appear in at least one concept row. Use
-filename stems as identifiers, linked to their summary files.
+Group papers by concept. Use filename stems as identifiers, linked to their summary files.
+
+**Concept budget** — this table is for *discovery*, not for tagging every nuance:
+
+- Target **8–20 concepts total** across the whole collection, regardless of collection
+  size. More than 20 becomes hard to scan.
+- Every paper should appear in **2–5 concepts** — not 1 (too isolated) and not 7+
+  (concepts too fine-grained).
+- **Merge near-synonyms** aggressively (e.g., "history-based parametric modelling" and
+  "feature-based parametric modelling" collapse to one row).
+- If a candidate concept has only 1 paper, either (a) generalize it until another paper
+  fits, or (b) fold it into a broader concept. Single-paper concepts add noise without
+  aiding discovery.
+- Sort concepts by paper count descending (most-cited first), then alphabetically.
 
 If processing a subset, **merge** with any existing INDEX.md rather than overwriting.
 

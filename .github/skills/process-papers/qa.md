@@ -13,9 +13,16 @@ mechanical issues** you find, and write a QA report.
 
 ## Image viewing budget
 
-You have a budget of **4–6 images max** to view via `view_image`. Allocate them
-strategically across the checks below. Do NOT view all pages. If a page is useful for
-both math check and text completeness, view it once and count it once against the budget.
+Compute your budget from the paper's page count: `budget = max(3, min(8, pages / 2))`.
+Count the files in `processed/{{PAPER_NAME}}/page-images/` to get `pages`.
+
+- 2–6 page papers: budget 3
+- 10 page paper: budget 5
+- 16+ page papers: budget 8 (cap)
+
+Allocate the budget strategically across the checks below. Do NOT view all pages. If a
+page is useful for both math check and text completeness, view it once and count it
+once against the budget.
 
 Note: figure verification is handled separately by the describe-figure subagent.
 You do **not** need to check extracted figures.
