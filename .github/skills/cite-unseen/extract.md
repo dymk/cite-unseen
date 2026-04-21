@@ -44,7 +44,7 @@ Run the reorganize script. It moves `paper.md` into place, moves extracted image
 marker staging dir, and renders page PNGs at 150 DPI into `page-images/`:
 
 ```bash
-python .github/skills/process-papers/scripts/reorganize_marker_output.py \
+python .github/skills/cite-unseen/scripts/reorganize_marker_output.py \
   {{PAPER_NAME}} --papers-dir {{PAPERS_DIR}}
 ```
 

@@ -55,7 +55,9 @@ def find_caption(
     ``caption`` is the text following the label on the same line, stripped.
     """
     search_end = (
-        next_ref_start if next_ref_start is not None else min(len(md_text), ref_end + 400)
+        next_ref_start
+        if next_ref_start is not None
+        else min(len(md_text), ref_end + 400)
     )
     # Stop at the next image ref even if within our window.
     if next_ref_start is not None:
@@ -140,9 +142,7 @@ def index_figures(paper_name: str, processed_dir: Path) -> None:
             start, end = spans[0]
             context = extract_context(md_text, start, end, CONTEXT_CHARS)
             # Find the next image ref (if any) to bound caption search.
-            next_ref = next(
-                (pos for pos in all_ref_positions if pos > end), None
-            )
+            next_ref = next((pos for pos in all_ref_positions if pos > end), None)
             label, caption = find_caption(md_text, end, next_ref)
             if label is not None:
                 labelled_count += 1

@@ -1,5 +1,5 @@
 ---
-name: process-papers
+name: cite-unseen
 description: >
   Extract, QA-verify, and summarize a collection of academic PDFs. Use when asked to
   process papers, extract PDFs, run the paper pipeline, or build summaries/concepts
@@ -19,7 +19,7 @@ allowed-tools:
 
 Accepted formats for `{{papers}}`:
 - `all` — process every PDF in the papers directory
-- Filename stems, comma-separated: `kripac-1997-naming, capoyleas-1996-generic-naming`
+- Filename stems, comma-separated: `smith-2020-method, jones-2019-framework`
 - Shell glob: `*-2002-*` (matches filenames)
 
 At startup, list all `*.pdf` files in `{{papers_dir}}`. If `{{papers}}` is not `all`,
@@ -38,7 +38,7 @@ coding agent can use the papers without re-processing PDFs at query time.
 
 ```
 <root>/
-├── .github/skills/process-papers/
+├── .github/skills/cite-unseen/
 │   ├── SKILL.md                         # this file — orchestration instructions
 │   ├── extract.md                       # subagent prompt: Phase 1 extraction
 │   ├── describe-figure.md               # subagent prompt: Phase 2 figure description
@@ -92,7 +92,7 @@ Paper directories under `processed/` are created automatically by each subagent.
 
 Each phase that operates per-paper uses a **subagent** with a self-contained prompt file
 in this skill directory. The orchestrator (this file) reads the agent prompt, substitutes
-`{{PAPER_NAME}}` with the paper's filename stem (e.g., `kripac-1997-naming`), and
+`{{PAPER_NAME}}` with the paper's filename stem (e.g., `smith-2020-method`), and
 invokes the subagent.
 
 This design:
@@ -137,7 +137,7 @@ extracts ~2000 chars of surrounding context per figure, and writes a structured
 `_index.json`:
 
 ```bash
-python .github/skills/process-papers/scripts/index_figures.py {{PAPER_NAME}}
+python .github/skills/cite-unseen/scripts/index_figures.py {{PAPER_NAME}}
 ```
 
 Output: `processed/{{PAPER_NAME}}/figures/_index.json` — a list of
@@ -240,7 +240,7 @@ Include content equivalent to:
 
 Each paper in this collection has been extracted, verified, and summarized into a
 standard directory structure under `processed/`. Every paper lives in its own directory
-named by filename stem (e.g., `processed/kripac-1997-naming/`).
+named by filename stem (e.g., `processed/smith-2020-method/`).
 
 ### Per-Paper Directory Layout
 
@@ -301,8 +301,8 @@ Group papers by concept. Use filename stems as identifiers, linked to their summ
   size. More than 20 becomes hard to scan.
 - Every paper should appear in **2–5 concepts** — not 1 (too isolated) and not 7+
   (concepts too fine-grained).
-- **Merge near-synonyms** aggressively (e.g., "history-based parametric modelling" and
-  "feature-based parametric modelling" collapse to one row).
+- **Merge near-synonyms** aggressively (e.g., two phrasings of the same underlying idea
+  should collapse to one row).
 - If a candidate concept has only 1 paper, either (a) generalize it until another paper
   fits, or (b) fold it into a broader concept. Single-paper concepts add noise without
   aiding discovery.
