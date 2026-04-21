@@ -10,6 +10,14 @@ allowed-tools:
 
 # Task: Pre-process a collection of academic PDFs
 
+> **READ THIS FIRST.** This pipeline is designed to run as an **orchestrator + subagents**.
+> Every per-paper unit (extraction, figure description, QA, summarization) MUST be
+> dispatched to a subagent — never inlined into the orchestrator, regardless of how
+> simple the shell commands look or how many papers are in scope. Cost is not your
+> concern: the user already accepted it by invoking this skill. See "Subagent
+> architecture" below for the full rationale. If you catch yourself reasoning about
+> "avoiding subagent overhead", stop and re-read that section.
+
 ## Inputs
 
 - **`{{papers_dir}}`** (default: `papers/`) — directory containing PDF files to process.
@@ -95,18 +103,53 @@ in this skill directory. The orchestrator (this file) reads the agent prompt, su
 `{{PAPER_NAME}}` with the paper's filename stem (e.g., `smith-2020-method`), and
 invokes the subagent.
 
-This design:
-- Prevents main agent context overflow (each paper is isolated)
-- Enables parallelism (independent subagents can run concurrently)
-- Makes prompts independently iterable and reviewable
+### MANDATORY: do not inline per-paper work
+
+**You MUST spawn a subagent for every per-paper unit listed below. Do not inline this
+work into the orchestrator, regardless of perceived cost or simplicity.**
+
+Phases that require subagents (one invocation per item):
+
+| Phase | Unit | Subagent prompt |
+|-------|------|-----------------|
+| 1 | one per paper | `extract.md` |
+| 2b | one per figure | `describe-figure.md` |
+| 3 | one per paper | `qa.md` |
+| 5 | one per paper | `summarize.md` |
+
+Phases 4 and 6 are orchestrator-only (triage + index assembly) and do not spawn subagents.
+
+### Why this is non-negotiable
+
+- **Context budget is the bottleneck, not token cost.** Inlining extract.md into the
+  orchestrator pulls marker stdout, file listings, image counts, and per-paper sanity
+  checks into main context. Across 25 papers that's tens of thousands of tokens of
+  transient output crowding out the actual orchestration state.
+- **You will underestimate "just shell commands".** Phase 1 looks like plain bash, but
+  real runs produce multi-page stderr, OCR warnings, and failure diagnostics. A subagent
+  absorbs all of that and returns a one-line status. The orchestrator stays clean.
+- **Subagents are not a "premium" path.** They are the default. The question is never
+  "is this worth spawning a subagent?" — it's "do I have a reason NOT to?" For the units
+  in the table above, the answer is always no.
+- **Cost reasoning is out of scope.** Do not budget subagent invocations. Do not batch
+  papers to "save" subagents. Do not inline to "avoid overhead". The user already
+  accepted the cost by invoking this skill.
+
+### What you CAN do
+
+- Run extraction subagents in **waves of up to 2** (GPU constraint). Spawn 2, wait, spawn
+  the next 2. This is parallelism scheduling, not an inlining license.
+- Run Phase 2b, 3, 5 subagents **fully in parallel** (all CPU-only). Spawn as many as
+  the runtime will accept simultaneously.
+- Orchestrator-level work (reading `_index.json`, aggregating QA verdicts, assembling
+  `INDEX.md`) stays in the orchestrator.
 
 ### If no subagent runtime is available
 
-If the orchestrator has no tool for spawning true subagents and must do figure viewing
-and QA inline, **run Phase 3 (QA) before Phase 2 (figures)**. QA may edit `paper.md`
-to fix mechanical issues, and Phase 2 figure descriptions quote paper text — you want
-the descriptions to quote the fixed version. With real subagents, the two phases are
-independent and run in parallel as documented.
+Only if the runtime truly cannot spawn subagents (not "would prefer not to"): stop and
+tell the user. Do not silently fall back to inlining. If the user confirms they want
+an inline fallback, **run Phase 3 (QA) before Phase 2 (figures)** — QA may edit
+`paper.md` to fix mechanical issues, and Phase 2 figure descriptions quote paper text.
 
 ---
 
@@ -114,6 +157,9 @@ independent and run in parallel as documented.
 
 **Agent prompt**: `extract.md` (in this skill directory)
 **Parallelism**: max 2 at a time (GPU-bound)
+**Subagent required**: YES — one per paper. Do NOT inline `marker_single` calls into
+the orchestrator, even though they are "just shell commands". See the "MANDATORY"
+subsection above.
 
 For each selected paper, invoke a subagent with `extract.md`, substituting
 `{{PAPER_NAME}}`. Each subagent runs `marker_single` and `pdftoppm` for its paper.
@@ -129,6 +175,8 @@ If any report `"failed"`, stop and report to user.
 
 **Agent prompt**: `describe-figure.md` (in this skill directory)
 **Parallelism**: fully parallel (CPU-only — one subagent per figure)
+**Subagent required**: YES — one per figure (not per paper). Do NOT describe figures
+inline.
 
 ### 2a. Index figures (mechanical)
 
@@ -181,6 +229,7 @@ expected — if a subagent can't view the image, report to user.
 
 **Agent prompt**: `qa.md` (in this skill directory)
 **Parallelism**: fully parallel (CPU-only)
+**Subagent required**: YES — one per paper. Do NOT view page images inline.
 
 Phase 2 and Phase 3 are independent and **can run in parallel**.
 
@@ -210,6 +259,8 @@ Read all QA reports (`processed/*/qa.md`) for the selected papers:
 
 **Agent prompt**: `summarize.md` (in this skill directory)
 **Parallelism**: fully parallel (CPU-only)
+**Subagent required**: YES — one per paper. Do NOT read `paper.md` files in the
+orchestrator to write summaries inline.
 
 For each paper, invoke a subagent with `summarize.md`, substituting
 `{{PAPER_NAME}}`. Each subagent reads the extracted text, figure descriptions, and writes
