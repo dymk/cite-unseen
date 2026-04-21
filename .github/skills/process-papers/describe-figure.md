@@ -7,8 +7,8 @@ how it relates to the surrounding text.
 ## Your assignment
 
 - **Paper**: `{{PAPER_NAME}}`
-- **Figure file**: `processed/text/{{PAPER_NAME}}/{{FIGURE_FILENAME}}`
-- **Output**: `processed/figures/{{PAPER_NAME}}/{{FIGURE_STEM}}.md`
+- **Figure file**: `processed/{{PAPER_NAME}}/images/{{FIGURE_FILENAME}}`
+- **Output**: `processed/{{PAPER_NAME}}/figures/{{FIGURE_STEM}}.md`
 
 ## Surrounding context
 

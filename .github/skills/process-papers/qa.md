@@ -7,15 +7,15 @@ mechanical issues** you find, and write a QA report.
 ## Your assigned paper
 
 - **Paper**: `{{PAPER_NAME}}`
-- **Extracted markdown**: `processed/text/{{PAPER_NAME}}/{{PAPER_NAME}}.md`
-- **Extracted figures**: `processed/text/{{PAPER_NAME}}/` (any .jpeg/.png files)
-- **Page images (ground truth)**: `processed/page-images/{{PAPER_NAME}}/page-NN.png`
-- **QA report output**: `processed/qa/{{PAPER_NAME}}-qa.md`
+- **Extracted markdown**: `processed/{{PAPER_NAME}}/paper.md`
+- **Page images (ground truth)**: `processed/{{PAPER_NAME}}/page-images/page-NN.png`
+- **QA report output**: `processed/{{PAPER_NAME}}/qa.md`
 
 ## Image viewing budget
 
 You have a budget of **4–6 images max** to view via `view_image`. Allocate them
-strategically across the checks below. Do NOT view all pages.
+strategically across the checks below. Do NOT view all pages. If a page is useful for
+both math check and text completeness, view it once and count it once against the budget.
 
 Note: figure verification is handled separately by the describe-figure subagent.
 You do **not** need to check extracted figures.
@@ -38,13 +38,15 @@ You do **not** need to check extracted figures.
    `{N}` followed by dashes).
 4. Check: paragraphs present? Headings captured? Text ordering correct?
 
-### 3. Special-case verification (only for these papers)
+### 3. OCR and language verification
 
-- **18-agbodan-2000-persistent-naming**, **19-agbodan-2003-entity-matching** (scanned
-  PDFs): verify OCR produced readable English text, not empty/garbage. Check at least
-  2 pages.
-- **24-cardot-2021-thesis** (French thesis): verify French text was extracted (not blank).
-  Sample 2 pages (beginning and middle).
+If the extracted markdown appears to come from a scanned/image-only PDF (very short
+lines, unusual spacing, or the extraction report flagged OCR):
+- Verify OCR produced readable text, not empty/garbage. Check at least 2 pages.
+
+If the text is in a non-English language:
+- Verify the text was extracted (not blank). Sample 2 pages.
+- Note the detected language in the QA report.
 
 ## Fixes
 
@@ -58,7 +60,7 @@ Do **not** fix issues that require judgment calls or significant rewriting.
 
 ## QA report
 
-Write the report to `processed/qa/{{PAPER_NAME}}-qa.md`:
+Write the report to `processed/{{PAPER_NAME}}/qa.md`:
 
 ```markdown
 # QA Report: {{PAPER_NAME}}
@@ -79,7 +81,8 @@ Write the report to `processed/qa/{{PAPER_NAME}}-qa.md`:
 - Issues: [list, or "none"]
 
 ## Special Case Notes
-[Only for papers 18, 19, 24 — otherwise omit this section]
+[Note any OCR issues, non-English language detected, or other unusual characteristics.
+Omit this section if nothing noteworthy.]
 ```
 
 ## Grading criteria (assessed AFTER fixes)
