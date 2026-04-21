@@ -92,7 +92,9 @@ Paper directories under `processed/` are created automatically by each subagent.
 ## Hardware
 
 - Marker uses **~9.6 GB VRAM peak** per worker with `--force_ocr`
-- **Max 2 extraction workers at a time** if using GPU
+- **One worker per GPU** — two workers on the same 16 GB GPU will OOM or thrash
+- With N GPUs: up to N concurrent extraction workers, each pinned via
+  `CUDA_VISIBLE_DEVICES` (see Phase 1 "GPU assignment")
 - A 10-page paper takes ~45 seconds per worker on GPU
 - QA and summarization phases are CPU-only — fully parallelizable
 
@@ -161,8 +163,31 @@ an inline fallback, **run Phase 3 (QA) before Phase 2 (figures)** — QA may edi
 the orchestrator, even though they are "just shell commands". See the "MANDATORY"
 subsection above.
 
+### GPU assignment
+
+Before dispatching, detect available GPUs:
+
+```bash
+nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | wc -l
+```
+
+Assign a GPU index to each concurrent worker via the `{{GPU_INDEX}}` template variable:
+
+- **2+ GPUs**: spawn workers in waves of 2, assigning `GPU_INDEX=0` to one and
+  `GPU_INDEX=1` to the other. Each worker sets `CUDA_VISIBLE_DEVICES` to its assigned
+  index before running marker.
+- **1 GPU**: spawn 1 worker at a time with `GPU_INDEX=0`.
+- **0 GPUs / CPU-only**: pass an empty string for `{{GPU_INDEX}}`; the worker will skip
+  the export and marker will fall back to CPU (much slower).
+
+Without this, both marker workers default to GPU 0 and one OOMs or both fight for the
+same device while the second GPU sits idle.
+
+### Dispatch
+
 For each selected paper, invoke a subagent with `extract.md`, substituting
-`{{PAPER_NAME}}`. Each subagent runs `marker_single` and `pdftoppm` for its paper.
+`{{PAPER_NAME}}`, `{{PAPERS_DIR}}`, and `{{GPU_INDEX}}`. Each subagent runs
+`marker_single` and `pdftoppm` for its paper on its assigned GPU.
 
 Wait for all to complete. Collect status reports.
 If any report `"failed"`, stop and report to user.

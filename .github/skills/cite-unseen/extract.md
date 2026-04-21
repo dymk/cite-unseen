@@ -8,6 +8,8 @@ page images for QA verification.
 - **Paper**: `{{PAPER_NAME}}`
 - **PDF path**: `{{PAPERS_DIR}}/{{PAPER_NAME}}.pdf`
 - **Output dir**: `processed/{{PAPER_NAME}}/`
+- **GPU index**: `{{GPU_INDEX}}` (the orchestrator assigns one GPU per concurrent worker
+  to avoid OOM when 2 workers land on the same device; see "Set GPU" below)
 
 ## Steps
 
@@ -17,7 +19,20 @@ page images for QA verification.
 source .venv/bin/activate.fish   # skip if no .venv exists
 ```
 
-### 2. Extract text with `marker`
+### 2. Set GPU
+
+Export `CUDA_VISIBLE_DEVICES` **before** invoking `marker_single` so this worker only
+sees the GPU the orchestrator assigned:
+
+```bash
+set -x CUDA_VISIBLE_DEVICES {{GPU_INDEX}}   # fish
+# or, in bash:
+# export CUDA_VISIBLE_DEVICES={{GPU_INDEX}}
+```
+
+If `{{GPU_INDEX}}` is empty (single-GPU system or CPU-only run), skip this step.
+
+### 3. Extract text with `marker`
 
 ```bash
 marker_single {{PAPERS_DIR}}/{{PAPER_NAME}}.pdf \
@@ -37,7 +52,7 @@ marker_single {{PAPERS_DIR}}/{{PAPER_NAME}}.pdf \
 - `*.jpeg` or `*.png` — any extracted figures/images
 - `{{PAPER_NAME}}_meta.json` — metadata
 
-### 3. Reorganize + render page images
+### 4. Reorganize + render page images
 
 Run the reorganize script. It moves `paper.md` into place, moves extracted images into
 `images/`, rewrites `![](foo.jpeg)` references to `![](images/foo.jpeg)`, cleans up the
@@ -54,7 +69,7 @@ The script prints a status line:
 This is pure, deterministic plumbing — do **not** rewrite image references or move files
 by hand.
 
-### 4. Sanity checks
+### 5. Sanity checks
 
 Before reporting back, verify:
 - `processed/{{PAPER_NAME}}/paper.md` exists and is **non-empty**
@@ -63,7 +78,7 @@ Before reporting back, verify:
 - Page images were generated in `processed/{{PAPER_NAME}}/page-images/`
   (count should match PDF page count)
 
-### 5. Report back
+### 6. Report back
 
 Return a structured report:
 ```
